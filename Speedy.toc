@@ -1,0 +1,10 @@
+## Interface: 20501
+## Title: Speedy
+## Author: Lobsterbandit
+## Notes: Track character leveling in real and in-game time
+## SavedVariables: SpeedyDB
+## Version: 0.1
+
+embeds.xml
+
+Speedy.lua

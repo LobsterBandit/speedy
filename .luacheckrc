@@ -1,0 +1,26 @@
+std = "lua51"
+exclude_files = {
+	"libs/",
+	".luacheckrc"
+}
+ignore = {}
+globals = {
+	-- external libs
+	"LibStub",
+	-- Lua APIs
+	"format",
+	"time",
+	-- WoW APIs
+	"GetAddOnMetadata",
+	"GetRealmName",
+	"RequestTimePlayed",
+	"UnitClass",
+	"UnitLevel",
+	"UnitName",
+	"UnitRace",
+	"UnitSex",
+	"UnitXP",
+	"UnitXPMax",
+	-- this addon
+	"Speedy"
+}

@@ -1,9 +1,12 @@
 ## Interface: 20501
+## Interface-BCC: 20501
 ## Title: Speedy
 ## Author: Lobsterbandit
 ## Notes: Track character leveling in real and in-game time
 ## SavedVariables: SpeedyDB
-## Version: 0.1
+## Version: @project-version@
+## DefaultState: Enabled
+## X-Curse-Project-ID: 504267
 
 embeds.xml
 

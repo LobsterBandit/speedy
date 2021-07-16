@@ -1,0 +1,42 @@
+name: CI-PR
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - "README.md"
+      - ".gitignore"
+      - ".luacheck"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Install and run Luacheck
+        uses: nebularg/actions-luacheck@v1
+        with:
+          args: "--no-color -q"
+          annotate: warning
+
+      - name: Create BCC Package
+        uses: BigWigsMods/packager@master
+        with:
+          args: -d -z -g bcc
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: Speedy-PR${{ github.event.number }}-bcc
+          path: .release/
+
+      - name: Send Status to Discord
+        uses: nebularg/actions-discord-webhook@v1
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          status: ${{ job.status }}
+        if: always()

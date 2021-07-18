@@ -251,7 +251,13 @@ function Speedy:PrintUsage()
     self:PrintMessage("  /speedy           - print this usage info")
     self:PrintMessage("  /speedy version - print version info")
     self:PrintMessage("  /speedy char     - print character data")
+    self:PrintMessage("  /speedy export  - print character data in json")
     self:PrintMessage("------------------------------------")
+end
+
+function Speedy:ShowExportString()
+    local json = LibStub("json.lua")
+    self:PrintMessage(json.encode(self.Character))
 end
 
 ------------------------------------
@@ -273,6 +279,11 @@ function Speedy:SpeedySlashHandler(input)
 
     if command == "char" then
         self:PrintCharacterMetadata()
+        return
+    end
+
+    if command == "export" then
+        self:ShowExportString()
         return
     end
 

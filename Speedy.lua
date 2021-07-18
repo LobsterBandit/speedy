@@ -2,6 +2,8 @@ local addonName = ...
 Speedy = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0", "AceEvent-3.0")
 Speedy.DatabaseName = "SpeedyDB"
 
+-- color of console output
+local CHAT_COLOR = "ff82bf4c"
 -- TODO: handle different expansions and max levels
 local MAX_LEVEL = 70
 -- set true to update /played time on next TIME_PLAYED_MSG event
@@ -205,14 +207,15 @@ function Speedy:UpdateCharacterMetadata()
 end
 
 function Speedy:PrintCharacterMetadata()
-    self:Printf("Key >> %s", self.Character.Key)
-    self:Printf("Realm >> %s", self.Character.Realm)
-    self:Printf("Name >> %s", self.Character.Name)
-    self:Printf("Class >> %s", self.Character.Class)
-    self:Printf("Race >> %s", self.Character.Race)
-    self:Printf("Gender >> %s", self.Character.Gender)
-    self:Printf("Level >> %s", self.Character.Level)
-    self:Printf("LastSeen >> %s", self.Character.LastSeen)
+    self:PrintMessage("Key >> %s", self.Character.Key)
+    self:PrintMessage("Realm >> %s", self.Character.Realm)
+    self:PrintMessage("Name >> %s", self.Character.Name)
+    self:PrintMessage("Class >> %s", self.Character.Class)
+    self:PrintMessage("Race >> %s", self.Character.Race)
+    self:PrintMessage("Gender >> %s", self.Character.Gender)
+    self:PrintMessage("Level >> %s", self.Character.Level)
+    self:PrintMessage("# Levels Tracked >> %d", #(self.Character.LevelTimes))
+    self:PrintMessage("LastSeen >> %s", self.Character.LastSeen)
 end
 
 function Speedy:InitLevelTimes()
@@ -233,6 +236,54 @@ function Speedy:InitLevelTimes()
     levelTime.LastUpdated = time()
 end
 
+function Speedy:PrintMessage(...)
+    self:Print("|c" .. CHAT_COLOR .. format(...) .. "|r")
+end
+
+function Speedy:PrintVersion()
+    self:PrintMessage("Version %s", self.Version)
+end
+
+function Speedy:PrintUsage()
+    self:PrintMessage("------------------------------------")
+    self:PrintVersion()
+    self:Print()
+    self:PrintMessage("  /speedy           - print this usage info")
+    self:PrintMessage("  /speedy version - print version info")
+    self:PrintMessage("  /speedy char     - print character data")
+    self:PrintMessage("------------------------------------")
+end
+
+------------------------------------
+-- Slash Commands
+------------------------------------
+
+function Speedy:SpeedySlashHandler(input)
+    if input == nil then
+        self:PrintUsage()
+        return
+    end
+
+    local command = self:GetArgs(input, 1)
+
+    if command == "version" then
+        self:PrintVersion()
+        return
+    end
+
+    if command == "char" then
+        self:PrintCharacterMetadata()
+        return
+    end
+
+    if command ~= nil then
+        self:PrintMessage("Unknown command: %s", input)
+        self:Print()
+    end
+
+    self:PrintUsage()
+end
+
 ------------------------------------
 -- Addon Setup
 ------------------------------------
@@ -242,10 +293,11 @@ function Speedy:OnInitialize()
     self.db = LibStub("AceDB-3.0"):New(self.DatabaseName, SpeedyDB_defaults, true)
 
     self:SetCurrentCharacter()
+    self:RegisterChatCommand("speedy", "SpeedySlashHandler")
 end
 
 function Speedy:OnEnable()
-    self:Printf("|cffff00ff%s|r", self.Version)
+    self:PrintVersion()
 
     self:UpdateCharacterMetadata()
     self:InitLevelTimes()
@@ -270,4 +322,5 @@ function Speedy:OnDisable()
     self:UnregisterEvent("TIME_PLAYED_MSG")
     self:UnregisterEvent("PLAYER_LEVEL_UP")
     self:UnregisterEvent("PLAYER_XP_UPDATE")
+    self:UnregisterChatCommand("speedy")
 end

@@ -89,6 +89,7 @@ local XPMaxPerLevel = {
 
 local SpeedyDB_defaults = {
     global = {
+        DBVersion = 1,
         Characters = {
             ["*"] = {
                 Key = nil,

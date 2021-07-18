@@ -8,14 +8,88 @@ local MAX_LEVEL = 70
 local calculateLevelTime = false
 
 -- convert integer returned from UnitSex() to description
-local genderMap = {
+local GenderMap = {
     [1] = "Unknown",
     [2] = "Male",
     [3] = "Female"
 }
 
+local XPMaxPerLevel = {
+    [1] = 400,
+    [2] = 900,
+    [3] = 1400,
+    [4] = 2100,
+    [5] = 2800,
+    [6] = 3600,
+    [7] = 4500,
+    [8] = 5400,
+    [9] = 6500,
+    [10] = 7600,
+    [11] = 8700,
+    [12] = 9800,
+    [13] = 11000,
+    [14] = 12300,
+    [15] = 13600,
+    [16] = 15000,
+    [17] = 16400,
+    [18] = 17800,
+    [19] = 19300,
+    [20] = 20800,
+    [21] = 22400,
+    [22] = 24000,
+    [23] = 25500,
+    [24] = 27200,
+    [25] = 28900,
+    [26] = 30500,
+    [27] = 32200,
+    [28] = 33900,
+    [29] = 36300,
+    [30] = 38800,
+    [31] = 41600,
+    [32] = 44600,
+    [33] = 48000,
+    [34] = 51400,
+    [35] = 55000,
+    [36] = 58700,
+    [37] = 62400,
+    [38] = 66200,
+    [39] = 70200,
+    [40] = 74300,
+    [41] = 78500,
+    [42] = 82800,
+    [43] = 87100,
+    [44] = 91600,
+    [45] = 96300,
+    [46] = 101000,
+    [47] = 105800,
+    [48] = 110700,
+    [49] = 115700,
+    [50] = 120900,
+    [51] = 126100,
+    [52] = 131500,
+    [53] = 137000,
+    [54] = 142500,
+    [55] = 148200,
+    [56] = 154000,
+    [57] = 159900,
+    [58] = 165800,
+    [59] = 172000,
+    [60] = 494000,
+    [61] = 574700,
+    [62] = 614400,
+    [63] = 650300,
+    [64] = 682300,
+    [65] = 710200,
+    [66] = 734100,
+    [67] = 753700,
+    [68] = 768900,
+    [69] = 779700,
+    [70] = 0
+}
+
 local SpeedyDB_defaults = {
     global = {
+        DBVersion = 1,
         Characters = {
             ["*"] = {
                 Key = nil,
@@ -31,16 +105,11 @@ local SpeedyDB_defaults = {
                 LevelTimes = {
                     ["*"] = {
                         XP = nil,
-                        XPMax = nil,
                         Played = nil, -- in seconds
                         LastUpdated = nil -- timestamp in seconds
                     }
                 }
             }
-        },
-        -- required XP per level
-        LevelXPMax = {
-            ["*"] = 0
         }
     }
 }
@@ -55,7 +124,6 @@ local function OnPlayerXPUpdate()
     end
 
     Speedy.Character.LevelTimes[Speedy.Character.Level + 1].XP = UnitXP("player")
-    Speedy.Character.LevelTimes[Speedy.Character.Level + 1].XPMax = Speedy:GetCurrentLevelXPMax()
     Speedy.Character.LevelTimes[Speedy.Character.Level + 1].LastUpdated = time()
 end
 
@@ -85,8 +153,6 @@ end
 local function OnPlayerLevelUp(_, newLevel)
     Speedy.Character.Level = newLevel
 
-    Speedy:GetCurrentLevelXPMax()
-
     -- if now max level, don't need these handlers anymore
     if newLevel == MAX_LEVEL then
         Speedy:UnregisterEvent("PLAYER_LEVEL_UP")
@@ -94,7 +160,7 @@ local function OnPlayerLevelUp(_, newLevel)
     end
 
     local completedLevel = Speedy.Character.LevelTimes[Speedy.Character.Level]
-    completedLevel.XP = completedLevel.XPMax
+    completedLevel.XP = XPMaxPerLevel[Speedy.Character.Level - 1]
     completedLevel.LastUpdated = time()
 
     -- request /played to finalize the just achieved level's time
@@ -133,7 +199,7 @@ function Speedy:UpdateCharacterMetadata()
     char.Name = UnitName("player")
     char.Class = UnitClass("player")
     char.Race = UnitRace("player")
-    char.Gender = genderMap[UnitSex("player")] or genderMap[1]
+    char.Gender = GenderMap[UnitSex("player")] or GenderMap[1]
     char.Level = UnitLevel("player")
     char.LastSeen = time()
 end
@@ -144,19 +210,9 @@ function Speedy:PrintCharacterMetadata()
     self:Printf("Name >> %s", self.Character.Name)
     self:Printf("Class >> %s", self.Character.Class)
     self:Printf("Race >> %s", self.Character.Race)
+    self:Printf("Gender >> %s", self.Character.Gender)
     self:Printf("Level >> %s", self.Character.Level)
     self:Printf("LastSeen >> %s", self.Character.LastSeen)
-end
-
-function Speedy:GetCurrentLevelXPMax()
-    -- db has it, no need to update
-    local xpMax = self.db.global.LevelXPMax[self.Character.Level]
-    if xpMax == 0 then
-        xpMax = UnitXPMax("player")
-        self.db.global.LevelXPMax[self.Character.Level] = xpMax
-    end
-
-    return xpMax
 end
 
 function Speedy:InitLevelTimes()
@@ -169,13 +225,9 @@ function Speedy:InitLevelTimes()
 
     if char.Level == 1 then
         levelTime.XP = 0
-        levelTime.XPMax = 0
         levelTime.Played = 0
     else
-        local maxXP = self.GetCurrentLevelXPMax()
-        levelTime.XP = maxXP
-        levelTime.XPMax = maxXP
-
+        levelTime.XP = XPMaxPerLevel[char.Level - 1]
         calculateLevelTime = true
     end
     levelTime.LastUpdated = time()
@@ -196,7 +248,6 @@ function Speedy:OnEnable()
     self:Printf("|cffff00ff%s|r", self.Version)
 
     self:UpdateCharacterMetadata()
-    self:GetCurrentLevelXPMax()
     self:InitLevelTimes()
     self:PrintCharacterMetadata()
 

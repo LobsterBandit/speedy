@@ -2,6 +2,8 @@ local addonName = ...
 Speedy = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0", "AceEvent-3.0")
 Speedy.DatabaseName = "SpeedyDB"
 
+local LibDeflate = LibStub("LibDeflate")
+local AceGUI = LibStub("AceGUI-3.0")
 -- color of console output
 local CHAT_COLOR = "ff82bf4c"
 -- TODO: handle different expansions and max levels
@@ -251,13 +253,37 @@ function Speedy:PrintUsage()
     self:PrintMessage("  /speedy           - print this usage info")
     self:PrintMessage("  /speedy version - print version info")
     self:PrintMessage("  /speedy char     - print character data")
-    self:PrintMessage("  /speedy export  - print character data in json")
+    self:PrintMessage("  /speedy export  - export character data")
     self:PrintMessage("------------------------------------")
 end
 
 function Speedy:ShowExportString()
     local json = LibStub("json.lua")
-    self:PrintMessage(json.encode(self.Character))
+    local data = json.encode(self.Character)
+
+    local compressed = LibDeflate:CompressZlib(data)
+    local printable = LibDeflate:EncodeForPrint(compressed)
+
+    local frame = AceGUI:Create("Frame")
+    frame:SetTitle("Speedy Character Export")
+    frame:SetStatusText("Exporting Speedy Character Data")
+    frame:SetCallback(
+        "OnClose",
+        function(widget)
+            AceGUI:Release(widget)
+        end
+    )
+    frame:SetLayout("Fill")
+
+    local editBox = AceGUI:Create("MultiLineEditBox")
+    editBox:DisableButton(true)
+    editBox:SetLabel(nil)
+    editBox:SetText(printable)
+    editBox:SetFocus()
+    editBox:HighlightText()
+
+    frame:AddChild(editBox)
+
 end
 
 ------------------------------------

@@ -3,8 +3,10 @@
 ..\FrameXML\UI.xsd">
     <Script file="libs\LibStub\LibStub.lua"/>
     <Script file="libs\json.lua\json.lua"/>
+    <Script file="libs\LibDeflate\LibDeflate.lua"/>
     <Include file="libs\AceAddon-3.0\AceAddon-3.0.xml"/>
     <Include file="libs\AceConsole-3.0\AceConsole-3.0.xml"/>
     <Include file="libs\AceDB-3.0\AceDB-3.0.xml"/>
     <Include file="libs\AceEvent-3.0\AceEvent-3.0.xml"/>
+    <Include file="libs\AceGUI-3.0\AceGUI-3.0.xml"/>
 </Ui>

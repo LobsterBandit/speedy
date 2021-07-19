@@ -2,6 +2,10 @@ local addonName = ...
 Speedy = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0", "AceEvent-3.0")
 Speedy.DatabaseName = "SpeedyDB"
 
+local LibDeflate = LibStub("LibDeflate")
+local AceGUI = LibStub("AceGUI-3.0")
+-- database version
+local DB_VERSION = 2
 -- color of console output
 local CHAT_COLOR = "ff82bf4c"
 -- TODO: handle different expansions and max levels
@@ -16,82 +20,8 @@ local GenderMap = {
     [3] = "Female"
 }
 
-local XPMaxPerLevel = {
-    [1] = 400,
-    [2] = 900,
-    [3] = 1400,
-    [4] = 2100,
-    [5] = 2800,
-    [6] = 3600,
-    [7] = 4500,
-    [8] = 5400,
-    [9] = 6500,
-    [10] = 7600,
-    [11] = 8700,
-    [12] = 9800,
-    [13] = 11000,
-    [14] = 12300,
-    [15] = 13600,
-    [16] = 15000,
-    [17] = 16400,
-    [18] = 17800,
-    [19] = 19300,
-    [20] = 20800,
-    [21] = 22400,
-    [22] = 24000,
-    [23] = 25500,
-    [24] = 27200,
-    [25] = 28900,
-    [26] = 30500,
-    [27] = 32200,
-    [28] = 33900,
-    [29] = 36300,
-    [30] = 38800,
-    [31] = 41600,
-    [32] = 44600,
-    [33] = 48000,
-    [34] = 51400,
-    [35] = 55000,
-    [36] = 58700,
-    [37] = 62400,
-    [38] = 66200,
-    [39] = 70200,
-    [40] = 74300,
-    [41] = 78500,
-    [42] = 82800,
-    [43] = 87100,
-    [44] = 91600,
-    [45] = 96300,
-    [46] = 101000,
-    [47] = 105800,
-    [48] = 110700,
-    [49] = 115700,
-    [50] = 120900,
-    [51] = 126100,
-    [52] = 131500,
-    [53] = 137000,
-    [54] = 142500,
-    [55] = 148200,
-    [56] = 154000,
-    [57] = 159900,
-    [58] = 165800,
-    [59] = 172000,
-    [60] = 494000,
-    [61] = 574700,
-    [62] = 614400,
-    [63] = 650300,
-    [64] = 682300,
-    [65] = 710200,
-    [66] = 734100,
-    [67] = 753700,
-    [68] = 768900,
-    [69] = 779700,
-    [70] = 0
-}
-
 local SpeedyDB_defaults = {
     global = {
-        DBVersion = 1,
         Characters = {
             ["*"] = {
                 Key = nil,
@@ -101,12 +31,12 @@ local SpeedyDB_defaults = {
                 Race = nil,
                 Gender = nil, -- enum, need map table
                 Level = nil,
+                XP = nil, -- current level xp
                 PlayedTotal = 0, -- in seconds
                 PlayedLevel = 0, -- in seconds
                 LastSeen = nil, -- timestamp in seconds
                 LevelTimes = {
                     ["*"] = {
-                        XP = nil,
                         Played = nil, -- in seconds
                         LastUpdated = nil -- timestamp in seconds
                     }
@@ -121,12 +51,7 @@ local SpeedyDB_defaults = {
 ------------------------------------
 
 local function OnPlayerXPUpdate()
-    if Speedy.Character.Level == MAX_LEVEL then
-        return
-    end
-
-    Speedy.Character.LevelTimes[Speedy.Character.Level + 1].XP = UnitXP("player")
-    Speedy.Character.LevelTimes[Speedy.Character.Level + 1].LastUpdated = time()
+    Speedy.Character.XP = UnitXP("player")
 end
 
 local function OnTimePlayedMsg(_, totalTime, currentLevelTime)
@@ -138,13 +63,13 @@ local function OnTimePlayedMsg(_, totalTime, currentLevelTime)
 
     -- if not max level, update played time of progressing level
     if char.Level ~= MAX_LEVEL then
-        char.LevelTimes[char.Level + 1].Played = totalTime
-        char.LevelTimes[char.Level + 1].LastUpdated = time()
+        char.LevelTimes[tostring(char.Level + 1)].Played = totalTime
+        char.LevelTimes[tostring(char.Level + 1)].LastUpdated = time()
     end
 
     if calculateLevelTime then
-        char.LevelTimes[char.Level].Played = totalTime - currentLevelTime
-        char.LevelTimes[char.Level].LastUpdated = time()
+        char.LevelTimes[tostring(char.Level)].Played = totalTime - currentLevelTime
+        char.LevelTimes[tostring(char.Level)].LastUpdated = time()
         calculateLevelTime = false
     end
 
@@ -161,10 +86,6 @@ local function OnPlayerLevelUp(_, newLevel)
         Speedy:UnregisterEvent("PLAYER_XP_UPDATE")
     end
 
-    local completedLevel = Speedy.Character.LevelTimes[Speedy.Character.Level]
-    completedLevel.XP = XPMaxPerLevel[Speedy.Character.Level - 1]
-    completedLevel.LastUpdated = time()
-
     -- request /played to finalize the just achieved level's time
     calculateLevelTime = true
     Speedy:RegisterEvent("TIME_PLAYED_MSG", OnTimePlayedMsg)
@@ -173,7 +94,7 @@ end
 
 local function OnPlayerLogout()
     if Speedy.Character.Level ~= MAX_LEVEL then
-        Speedy.Character.LevelTimes[Speedy.Character.Level + 1].LastUpdated = time()
+        Speedy.Character.LevelTimes[tostring(Speedy.Character.Level + 1)].LastUpdated = time()
     end
     Speedy.Character.LastSeen = time()
 end
@@ -204,6 +125,8 @@ function Speedy:UpdateCharacterMetadata()
     char.Gender = GenderMap[UnitSex("player")] or GenderMap[1]
     char.Level = UnitLevel("player")
     char.LastSeen = time()
+    -- update char.XP
+    OnPlayerXPUpdate()
 end
 
 function Speedy:PrintCharacterMetadata()
@@ -214,23 +137,25 @@ function Speedy:PrintCharacterMetadata()
     self:PrintMessage("Race >> %s", self.Character.Race)
     self:PrintMessage("Gender >> %s", self.Character.Gender)
     self:PrintMessage("Level >> %s", self.Character.Level)
-    self:PrintMessage("# Levels Tracked >> %d", #(self.Character.LevelTimes))
+    local numLevels = 0
+    for _, _ in pairs(self.Character.LevelTimes) do
+        numLevels = numLevels + 1
+    end
+    self:PrintMessage("# Levels Tracked >> %d", numLevels)
     self:PrintMessage("LastSeen >> %s", self.Character.LastSeen)
 end
 
 function Speedy:InitLevelTimes()
     local char = self.Character
-    local levelTime = char.LevelTimes[char.Level]
+    local levelTime = char.LevelTimes[tostring(char.Level)]
 
     if levelTime.LastUpdated ~= nil then
         return
     end
 
     if char.Level == 1 then
-        levelTime.XP = 0
         levelTime.Played = 0
     else
-        levelTime.XP = XPMaxPerLevel[char.Level - 1]
         calculateLevelTime = true
     end
     levelTime.LastUpdated = time()
@@ -251,7 +176,71 @@ function Speedy:PrintUsage()
     self:PrintMessage("  /speedy           - print this usage info")
     self:PrintMessage("  /speedy version - print version info")
     self:PrintMessage("  /speedy char     - print character data")
+    self:PrintMessage("  /speedy export  - export character data")
     self:PrintMessage("------------------------------------")
+end
+
+function Speedy:ShowExportString()
+    local json = LibStub("json.lua")
+    local data = json.encode(self.db.global.Characters)
+
+    local compressed = LibDeflate:CompressZlib(data)
+    local printable = LibDeflate:EncodeForPrint(compressed)
+
+    local frame = AceGUI:Create("Frame")
+    frame:SetTitle("Speedy Character Export")
+    frame:SetStatusText("Exporting Speedy Character Data")
+    frame:SetCallback(
+        "OnClose",
+        function(widget)
+            AceGUI:Release(widget)
+        end
+    )
+    frame:SetLayout("Fill")
+
+    local editBox = AceGUI:Create("MultiLineEditBox")
+    editBox:DisableButton(true)
+    editBox:SetLabel(nil)
+    editBox:SetText(printable)
+    editBox:SetFocus()
+    editBox:HighlightText()
+
+    frame:AddChild(editBox)
+end
+
+function Speedy:UpgradeDB()
+    local dbVersion = self.db.global.DBVersion or 1
+
+    -- nothing to do if already at max db version
+    if dbVersion == DB_VERSION then
+        return
+    end
+
+    while dbVersion < DB_VERSION do
+        if dbVersion == 1 then
+            -- delete LevelXPMax global table
+            if self.db.global.LevelXPMax then
+                self.db.global.LevelXPMax = nil
+            end
+
+            -- remove XP and XPMax from each LevelTimes
+            -- set LevelTimes keys to strings
+            for _, char in pairs(self.db.global.Characters) do
+                local newLevelTimes = {}
+                for levelNum, levelTime in pairs(char.LevelTimes) do
+                    newLevelTimes[tostring(levelNum)] = {
+                        Played = levelTime.Played,
+                        LastUpdated = levelTime.LastUpdated
+                    }
+                end
+                char.LevelTimes = newLevelTimes
+            end
+
+            -- completed 1 => 2 upgrade
+            dbVersion = 2
+            self.db.global.DBVersion = dbVersion
+        end
+    end
 end
 
 ------------------------------------
@@ -276,6 +265,11 @@ function Speedy:SpeedySlashHandler(input)
         return
     end
 
+    if command == "export" then
+        self:ShowExportString()
+        return
+    end
+
     if command ~= nil then
         self:PrintMessage("Unknown command: %s", input)
         self:Print()
@@ -291,6 +285,7 @@ end
 function Speedy:OnInitialize()
     self.Version = "v" .. GetAddOnMetadata("Speedy", "Version")
     self.db = LibStub("AceDB-3.0"):New(self.DatabaseName, SpeedyDB_defaults, true)
+    self:UpgradeDB()
 
     self:SetCurrentCharacter()
     self:RegisterChatCommand("speedy", "SpeedySlashHandler")

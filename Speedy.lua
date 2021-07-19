@@ -4,6 +4,8 @@ Speedy.DatabaseName = "SpeedyDB"
 
 local LibDeflate = LibStub("LibDeflate")
 local AceGUI = LibStub("AceGUI-3.0")
+-- database version
+local DB_VERSION = 2
 -- color of console output
 local CHAT_COLOR = "ff82bf4c"
 -- TODO: handle different expansions and max levels
@@ -93,7 +95,6 @@ local XPMaxPerLevel = {
 
 local SpeedyDB_defaults = {
     global = {
-        DBVersion = 1,
         Characters = {
             ["*"] = {
                 Key = nil,
@@ -103,12 +104,12 @@ local SpeedyDB_defaults = {
                 Race = nil,
                 Gender = nil, -- enum, need map table
                 Level = nil,
+                XP = nil, -- current level xp
                 PlayedTotal = 0, -- in seconds
                 PlayedLevel = 0, -- in seconds
                 LastSeen = nil, -- timestamp in seconds
                 LevelTimes = {
                     ["*"] = {
-                        XP = nil,
                         Played = nil, -- in seconds
                         LastUpdated = nil -- timestamp in seconds
                     }
@@ -123,12 +124,7 @@ local SpeedyDB_defaults = {
 ------------------------------------
 
 local function OnPlayerXPUpdate()
-    if Speedy.Character.Level == MAX_LEVEL then
-        return
-    end
-
-    Speedy.Character.LevelTimes[Speedy.Character.Level + 1].XP = UnitXP("player")
-    Speedy.Character.LevelTimes[Speedy.Character.Level + 1].LastUpdated = time()
+    Speedy.Character.XP = UnitXP("player")
 end
 
 local function OnTimePlayedMsg(_, totalTime, currentLevelTime)
@@ -140,13 +136,13 @@ local function OnTimePlayedMsg(_, totalTime, currentLevelTime)
 
     -- if not max level, update played time of progressing level
     if char.Level ~= MAX_LEVEL then
-        char.LevelTimes[char.Level + 1].Played = totalTime
-        char.LevelTimes[char.Level + 1].LastUpdated = time()
+        char.LevelTimes[tostring(char.Level + 1)].Played = totalTime
+        char.LevelTimes[tostring(char.Level + 1)].LastUpdated = time()
     end
 
     if calculateLevelTime then
-        char.LevelTimes[char.Level].Played = totalTime - currentLevelTime
-        char.LevelTimes[char.Level].LastUpdated = time()
+        char.LevelTimes[tostring(char.Level)].Played = totalTime - currentLevelTime
+        char.LevelTimes[tostring(char.Level)].LastUpdated = time()
         calculateLevelTime = false
     end
 
@@ -163,10 +159,6 @@ local function OnPlayerLevelUp(_, newLevel)
         Speedy:UnregisterEvent("PLAYER_XP_UPDATE")
     end
 
-    local completedLevel = Speedy.Character.LevelTimes[Speedy.Character.Level]
-    completedLevel.XP = XPMaxPerLevel[Speedy.Character.Level - 1]
-    completedLevel.LastUpdated = time()
-
     -- request /played to finalize the just achieved level's time
     calculateLevelTime = true
     Speedy:RegisterEvent("TIME_PLAYED_MSG", OnTimePlayedMsg)
@@ -175,7 +167,7 @@ end
 
 local function OnPlayerLogout()
     if Speedy.Character.Level ~= MAX_LEVEL then
-        Speedy.Character.LevelTimes[Speedy.Character.Level + 1].LastUpdated = time()
+        Speedy.Character.LevelTimes[tostring(Speedy.Character.Level + 1)].LastUpdated = time()
     end
     Speedy.Character.LastSeen = time()
 end
@@ -206,6 +198,8 @@ function Speedy:UpdateCharacterMetadata()
     char.Gender = GenderMap[UnitSex("player")] or GenderMap[1]
     char.Level = UnitLevel("player")
     char.LastSeen = time()
+    -- update char.XP
+    OnPlayerXPUpdate()
 end
 
 function Speedy:PrintCharacterMetadata()
@@ -216,23 +210,25 @@ function Speedy:PrintCharacterMetadata()
     self:PrintMessage("Race >> %s", self.Character.Race)
     self:PrintMessage("Gender >> %s", self.Character.Gender)
     self:PrintMessage("Level >> %s", self.Character.Level)
-    self:PrintMessage("# Levels Tracked >> %d", #(self.Character.LevelTimes))
+    local numLevels = 0
+    for _, _ in pairs(self.Character.LevelTimes) do
+        numLevels = numLevels + 1
+    end
+    self:PrintMessage("# Levels Tracked >> %d", numLevels)
     self:PrintMessage("LastSeen >> %s", self.Character.LastSeen)
 end
 
 function Speedy:InitLevelTimes()
     local char = self.Character
-    local levelTime = char.LevelTimes[char.Level]
+    local levelTime = char.LevelTimes[tostring(char.Level)]
 
     if levelTime.LastUpdated ~= nil then
         return
     end
 
     if char.Level == 1 then
-        levelTime.XP = 0
         levelTime.Played = 0
     else
-        levelTime.XP = XPMaxPerLevel[char.Level - 1]
         calculateLevelTime = true
     end
     levelTime.LastUpdated = time()
@@ -283,7 +279,41 @@ function Speedy:ShowExportString()
     editBox:HighlightText()
 
     frame:AddChild(editBox)
+end
 
+function Speedy:UpgradeDB()
+    local dbVersion = self.db.global.DBVersion or 1
+
+    -- nothing to do if already at max db version
+    if dbVersion == DB_VERSION then
+        return
+    end
+
+    while dbVersion < DB_VERSION do
+        if dbVersion == 1 then
+            -- delete LevelXPMax global table
+            if self.db.global.LevelXPMax then
+                self.db.global.LevelXPMax = nil
+            end
+
+            -- remove XP and XPMax from each LevelTimes
+            -- set LevelTimes keys to strings
+            for _, char in pairs(self.db.global.Characters) do
+                local newLevelTimes = {}
+                for levelNum, levelTime in pairs(char.LevelTimes) do
+                    newLevelTimes[tostring(levelNum)] = {
+                        Played = levelTime.Played,
+                        LastUpdated = levelTime.LastUpdated
+                    }
+                end
+                char.LevelTimes = newLevelTimes
+            end
+
+            -- completed 1 => 2 upgrade
+            dbVersion = 2
+            self.db.global.DBVersion = dbVersion
+        end
+    end
 end
 
 ------------------------------------
@@ -328,6 +358,7 @@ end
 function Speedy:OnInitialize()
     self.Version = "v" .. GetAddOnMetadata("Speedy", "Version")
     self.db = LibStub("AceDB-3.0"):New(self.DatabaseName, SpeedyDB_defaults, true)
+    self:UpgradeDB()
 
     self:SetCurrentCharacter()
     self:RegisterChatCommand("speedy", "SpeedySlashHandler")

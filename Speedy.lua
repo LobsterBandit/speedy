@@ -255,7 +255,7 @@ end
 
 function Speedy:ShowExportString()
     local json = LibStub("json.lua")
-    local data = json.encode(self.Character)
+    local data = json.encode(self.db.global.Characters)
 
     local compressed = LibDeflate:CompressZlib(data)
     local printable = LibDeflate:EncodeForPrint(compressed)

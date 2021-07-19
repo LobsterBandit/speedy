@@ -11,3 +11,4 @@ Speedy acts mainly as a data store, persisting leveling times for each character
 * /speedy         - print this usage info
 * /speedy version - print version info
 * /speedy char    - print character data
+* /speedy export  - export all character data as zlib-encoded json string

@@ -9,6 +9,7 @@ globals = {
 	"LibStub",
 	-- Lua APIs
 	"format",
+	"gsub",
 	"time",
 	-- WoW APIs
 	"GetAddOnMetadata",

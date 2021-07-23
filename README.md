@@ -12,3 +12,7 @@ Speedy acts mainly as a data store, persisting leveling times for each character
 * /speedy version - print version info
 * /speedy char    - print character data
 * /speedy export  - export all character data as zlib-encoded json string
+
+## Visualization
+
+[speedy-web](https://github.com/LobsterBandit/speedy-web) is an in-progress Web UI for visualizing data exported from `/speedy export`.

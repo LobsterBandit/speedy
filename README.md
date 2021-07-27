@@ -15,4 +15,7 @@ Speedy acts mainly as a data store, persisting leveling times for each character
 
 ## Visualization
 
-[speedy-web](https://github.com/LobsterBandit/speedy-web) is an in-progress Web UI for visualizing data exported from `/speedy export`.
+[speedy-wow](https://speedy-wow.pages.dev) is an in-progress Web UI for visualizing data exported from `/speedy export`.
+
+* Website: <https://speedy-wow.pages.dev>
+* Source: [lobsterbandit/speedy-web](https://github.com/LobsterBandit/speedy-web)
